@@ -313,6 +313,8 @@ impl<'a, T: Float, const D: usize> KdTree<'a, T, D> {
             let next_dim = (dim + 1) % D;
             stack.push((near, next_dim, diffs, leaf_distance));
 
+            // Calculate the distance from query to the nearest point in the leaf
+            // (the location where boundaries intersect)
             let new_diff = query[(dim, 0)] - boundary;
             let next_leaf_distance = leaf_distance + squared_diff(new_diff, diffs[dim]);
 
