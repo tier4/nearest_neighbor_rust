@@ -286,9 +286,14 @@ impl<'a, T: Float, const D: usize> KdTree<'a, T, D> {
     ) -> (Option<usize>, T) {
         let mut argmin = *argmin;
         let mut min_distance = min_distance;
-        let mut stack = Vec::from([(node_index, find_dim::<D>(node_index))]);
+        let mut stack = Vec::from([(
+            node_index,
+            find_dim::<D>(node_index),
+            nalgebra::zero::<SVector<T, D>>(),
+            T::zero(),
+        )]);
         while stack.len() != 0 {
-            let (node_index, dim) = stack.pop().unwrap();
+            let (node_index, dim, mut diffs, leaf_distance) = stack.pop().unwrap();
             let maybe_boundary = self.boundaries.get(&node_index);
 
             let Some(&boundary) = maybe_boundary else {
@@ -306,14 +311,19 @@ impl<'a, T: Float, const D: usize> KdTree<'a, T, D> {
             let (near, far) = children_near_far(query[(dim, 0)], boundary, node_index);
 
             let next_dim = (dim + 1) % D;
-            stack.push((near, next_dim));
+            stack.push((near, next_dim, diffs, leaf_distance));
+
+            let new_diff = query[(dim, 0)] - boundary;
+            let next_leaf_distance = leaf_distance + squared_diff(new_diff, diffs[dim]);
 
             // If the nearest element is closer than the boundary, we don't
             // need to search the farther side than the boundary.
-            if min_distance < distance_to_boundary(query, boundary, dim) {
+            if min_distance < next_leaf_distance {
                 continue;
             }
-            stack.push((far, next_dim));
+
+            diffs[dim] = new_diff;
+            stack.push((far, next_dim, diffs, next_leaf_distance));
         }
         (argmin, min_distance)
     }
